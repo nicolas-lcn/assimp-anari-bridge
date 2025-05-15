@@ -1,0 +1,6 @@
+[submodule "vendors/assimp"]
+	path = vendors/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule "vendors/anari-sdk"]
+	path = vendors/anari-sdk
+	url = https://github.com/KhronosGroup/ANARI-SDK.git
