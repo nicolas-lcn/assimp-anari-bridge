@@ -37,7 +37,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
     for (unsigned int index = 0; index < scene->mNumMaterials; ++index) {
 
       // KHR_MATERIAL_PHYSICALLY_BASED or KHR_MATERIAL_MATTE
-      const aiMaterial* material = scene->mMaterials[index];
+      const aiMaterial* aiMaterial = scene->mMaterials[index];
       const char* materialType;
       ANARIMaterial material = anariNewMaterial(device, "physicallyBased");
 
