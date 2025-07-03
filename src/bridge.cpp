@@ -15,11 +15,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-bool loadTexture(const aiScene* scene, ANARIDevice device, const aiMaterial* aiMaterial, const aiTextureType type, ANARISampler sampler)
+bool loadTexture(const aiScene* scene, ANARIDevice device, const aiMaterial* aiMaterial, const aiTextureType type, const unsigned int index, ANARISampler sampler)
 {
   aiString path;
 
-  if(aiMaterial->GetTexture(type, 0, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
+  if(aiMaterial->GetTexture(type, index, &path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
   {
     int imageWidth, imageHeight, imageBPP;
     imageWidth = imageHeight = imageBPP = 0;
@@ -204,7 +204,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
         // Assuming every textures are embedded in the scene
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_BASE_COLOR, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_BASE_COLOR, 0, sampler))
           anariSetParameter(device, material, "baseColor", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
       }
@@ -230,7 +230,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
         
         ANARISampler metallic = anariNewSampler(device, "image2D");
         // Assuming every textures are embedded in the scene
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_DIFFUSE_ROUGHNESS, metallic))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, metallic))
         {
           //According to gltf spec, metallness is encoded in blue channel
           float swizzle[16] = {
@@ -243,7 +243,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
         }
         ANARISampler roughness = anariNewSampler(device, "image2D");
         // Assuming every textures are embedded in the scene
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_DIFFUSE_ROUGHNESS, roughness))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, roughness))
         {
           //According to gltf spec, roughness is encoded in green channel
           float swizzle[16] = {
@@ -288,7 +288,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
         // Assuming every textures are embedded in the scene
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_NORMALS, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_NORMALS, 0, sampler))
           anariSetParameter(device, material, "normals", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
       }
@@ -304,13 +304,13 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       // AI_MATKEY_EMISSIVE_INTENSITY
 
 
+      float emissive;
       if(aiMaterial->GetTextureCount(aiTextureType_EMISSIVE) > 0)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
         // Assuming every textures are embedded in the scene
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_EMISSIVE, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_EMISSIVE, 0, sampler))
         {
-          float emissive;
           if(aiMaterial->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissive) == AI_SUCCESS)
           {
               float factor[16] = {
@@ -342,6 +342,9 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
           anariSetParameter(device, material, "normals", ANARI_SAMPLER, sampler);
         }
         anariRelease(device, sampler);
+      }else if(aiMaterial->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissive) == AI_SUCCESS)
+      {
+          anariSetParameter(device, material, "emissive", ANARI_FLOAT32, &emissive);
       }
 
       // Ambient occlusion
@@ -349,7 +352,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       if(aiMaterial->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION) > 0)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_AMBIENT_OCCLUSION, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_AMBIENT_OCCLUSION, 0, sampler))
           anariSetParameter(device, material, "occlusion", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
       }
@@ -361,7 +364,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       float transparency = 1.0f;
       if (aiMaterial->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparency) == AI_SUCCESS)
       {
-        anariSetParameter(device, material, "alphaCutOff", ANARI_FLOAT32, (void*)&transparency);
+        anariSetParameter(device, material, "alphaCutOff", ANARI_FLOAT32, &transparency);
       }
       aiBlendMode alphaMode;
       if (aiMaterial->Get(AI_MATKEY_BLEND_FUNC, alphaMode) == AI_SUCCESS)
@@ -378,7 +381,7 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       if(aiMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_SPECULAR, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_SPECULAR, 0, sampler))
           anariSetParameter(device, material, "specular", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
       }
@@ -393,59 +396,30 @@ ANARIWorld assimp_anari_bridge::bridge(const aiScene* scene, ANARIDevice device)
       if(aiMaterial->GetTextureCount(aiTextureType_CLEARCOAT) > 0)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
-        if(loadTexture(scene, device, aiMaterial, aiTextureType_CLEARCOAT, sampler))
+        if(loadTexture(scene, device, aiMaterial, aiTextureType_CLEARCOAT, 0, sampler))
           anariSetParameter(device, material, "clearcoat", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
       }
       float clearcoatRoughnessFactor = 1.0f;
-      if (aiMaterial->Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoatRoughnessFactor) == AI_SUCCESS)
-      {
-        anariSetParameter(device, material, "clearcoatRoughness", ANARI_FLOAT32, (void*)&clearcoatRoughnessFactor);
-      }else
-      {
-        aiTexture clearcoatRoughnessTexture;
-        if(aiMaterial->Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE, AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE, clearcoatRoughnessTexture) == AI_SUCCESS)
-        {
-          ANARISampler sampler = anariNewSampler(device, "image2D");
-          stbi_set_flip_vertically_on_load(1);
-          int imageWidth, imageHeight, imageBPP;
-          imageWidth = imageHeight = imageBPP = 0;
-          void* pImageData = stbi_load_from_memory((const stbi_uc*)clearcoatRoughnessTexture.pcData, clearcoatRoughnessTexture.mWidth, &imageWidth, &imageHeight, &imageBPP, 0);
-          anariSetParameter(device, sampler, "image", ANARI_ARRAY2D, pImageData);
-          anariSetParameter(device, sampler, "inAttribute", ANARI_STRING, "attribute0");
-          anariSetParameter(device, sampler, "filter", ANARI_STRING, "linear");
-          anariSetParameter(device, sampler, "wrapMode1", ANARI_STRING, "repeat");
-          anariSetParameter(device, sampler, "wrapMode2", ANARI_STRING, "repeat");
-
-          anariCommitParameters(device, sampler);
-          anariSetParameter(device, material, "clearcoat", ANARI_SAMPLER, sampler);
-          anariRelease(device, sampler);
-          stbi_image_free(pImageData);
-        }
-      }
-      aiTexture clearcoatNormalTexture;
-      if(aiMaterial->Get(AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE, clearcoatNormalTexture) == AI_SUCCESS)
+      if(aiMaterial->GetTextureCount(aiTextureType_CLEARCOAT) > 1)
       {
         ANARISampler sampler = anariNewSampler(device, "image2D");
-        stbi_set_flip_vertically_on_load(1);
-        int imageWidth, imageHeight, imageBPP;
-        imageWidth = imageHeight = imageBPP = 0;
-        void* pImageData = stbi_load_from_memory((const stbi_uc*)clearcoatNormalTexture.pcData, clearcoatNormalTexture.mWidth, &imageWidth, &imageHeight, &imageBPP, 0);
-        anariSetParameter(device, sampler, "image", ANARI_ARRAY2D, pImageData);
-        anariSetParameter(device, sampler, "inAttribute", ANARI_STRING, "attribute0");
-        anariSetParameter(device, sampler, "filter", ANARI_STRING, "linear");
-        anariSetParameter(device, sampler, "wrapMode1", ANARI_STRING, "repeat");
-        anariSetParameter(device, sampler, "wrapMode2", ANARI_STRING, "repeat");
-
-        anariCommitParameters(device, sampler);
-        anariSetParameter(device, material, "clearcoat", ANARI_SAMPLER, sampler);
+        if(loadTexture(scene, device, aiMaterial, AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE, sampler))
+          anariSetParameter(device, material, "clearcoatRoughness", ANARI_SAMPLER, sampler);
         anariRelease(device, sampler);
-        stbi_image_free(pImageData);
+      }else if (aiMaterial->Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoatRoughnessFactor) == AI_SUCCESS)
+      {
+        anariSetParameter(device, material, "clearcoatRoughness", ANARI_FLOAT32, &clearcoatRoughnessFactor);
+      }
+      if(aiMaterial->GetTextureCount(aiTextureType_CLEARCOAT) > 2)
+      {
+        ANARISampler sampler = anariNewSampler(device, "image2D");
+        if(loadTexture(scene, device, aiMaterial, AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE, sampler))
+          anariSetParameter(device, material, "clearcoatRoughness", ANARI_SAMPLER, sampler);
+        anariRelease(device, sampler);
       }
       
-
       
-
       anariCommitParameters(device, material);
       materialsByMaterialId[index] = material;
       anariRelease(device, material);
